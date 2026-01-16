@@ -2,27 +2,27 @@
 
 
 use std::{
-	hash::{Hasher, BuildHasherDefault},
+	hash::{Hasher, BuildHasher},
 	collections::{HashMap, HashSet},
 };
 
-
-pub type BuildCrasher<const SEED: u64 = DEFAULT_SEED> = BuildHasherDefault<Crasher<SEED>>;
 
 pub type CrashMap<K, V> = HashMap<K, V, BuildCrasher>;
 pub type CrashSet<K> = HashSet<K, BuildCrasher>;
 
 
 /// This is equal to `2^64 / golden_ratio`.
-pub const DEFAULT_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
+/// 
+/// Used by [`Crasher`] as the multiplication value, and by [`BuildCrasher`] as the hash seed.
+pub const SEED: u64 = 0x9E37_79B9_7F4A_7C15;
 
 
 #[derive(Debug, Clone, Copy)]
-pub struct Crasher<const SEED: u64> {
+pub struct Crasher {
 	hash: u64,
 }
 
-impl<const SEED: u64> Hasher for Crasher<SEED> {
+impl Hasher for Crasher {
 	fn finish(&self) -> u64 {self.hash}
 	
 	fn write(&mut self, bytes: &[u8]) {
@@ -38,9 +38,30 @@ impl<const SEED: u64> Hasher for Crasher<SEED> {
 	}
 }
 
-impl<const SEED: u64> Default for Crasher<SEED> {
+
+#[derive(Debug, Clone, Copy)]
+pub struct BuildCrasher {
+	seed: u64,
+}
+
+impl BuildCrasher {
+	/// Creates a `BuildCrasher` with a custom `seed`.
+	pub fn new(seed: u64) -> Self {
+		Self {seed}
+	}
+}
+
+/// By default, `BuildCrasher` uses [`SEED`] as the hash seed.
+impl Default for BuildCrasher {
 	fn default() -> Self {
-		// Lazily just using the multiplication seed as the initial hash
-		Self {hash: SEED}
+		Self::new(SEED)
+	}
+}
+
+impl BuildHasher for BuildCrasher {
+	type Hasher = Crasher;
+	
+	fn build_hasher(&self) -> Self::Hasher {
+		Crasher {hash: self.seed}
 	}
 }
